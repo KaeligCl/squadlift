@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Draft, FeedWorkout, Friend, FriendRequest, LeaderRow, Metric, Profile, ProfileStats } from './types'
+import type { Draft, FeedWorkout, Friend, FriendRequest, LeaderRow, Metric, Profile, ProfileStats, Template } from './types'
 
 const WEEK = 7 * 24 * 3600 * 1000
 
@@ -154,5 +154,36 @@ export async function saveWorkout(draft: Draft) {
       sets: e.sets.map((s) => ({ lbs: s.w, reps: s.r, done: s.d })),
     })),
   })
+  if (error) throw error
+}
+
+// Mes séances enregistrées + celles que mes amis ont partagées (le filtrage est fait par la base)
+export async function getTemplates(): Promise<Template[]> {
+  const { data } = await supabase
+    .from('workout_templates')
+    .select('id,user_id,name,exercises,is_shared,created_at,profiles(display_name)')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as unknown as Template[]
+}
+
+export async function saveTemplate(draft: Draft) {
+  const { error } = await supabase.from('workout_templates').insert({
+    name: draft.name.trim() || 'Workout',
+    exercises: draft.exercises.map((e) => ({
+      name: e.name,
+      equipment: e.equipment,
+      sets: e.sets.map((s) => ({ lbs: s.w, reps: s.r })),
+    })),
+  })
+  if (error) throw error
+}
+
+export async function setTemplateShared(id: string, shared: boolean) {
+  const { error } = await supabase.from('workout_templates').update({ is_shared: shared }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTemplate(id: string) {
+  const { error } = await supabase.from('workout_templates').delete().eq('id', id)
   if (error) throw error
 }

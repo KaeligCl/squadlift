@@ -12,7 +12,7 @@ src/
   App.tsx               session, navigation entre les écrans
   styles.css            tout le style
   screens/              un fichier par écran
-    Auth.tsx  Profile.tsx  Feed.tsx  Log.tsx  Friends.tsx  Ranks.tsx
+    Auth.tsx  Profile.tsx  Feed.tsx  Start.tsx  Log.tsx  Friends.tsx  Ranks.tsx
   components/           briques réutilisables
     Avatar.tsx  Icon.tsx  NavBar.tsx  Toast.tsx
   hooks/

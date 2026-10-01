@@ -31,3 +31,15 @@ export type ProfileStats = {
 export type Friend = { id: string; name: string; streak: number; last?: { name: string; created_at: string } }
 export type FriendRequest = { id: number; name: string; incoming: boolean }
 export type LeaderRow = { user_id: string; display_name: string; value: number }
+
+// Séance enregistrée (modèle) pouvant être partagée avec les amis
+export type TemplateExercise = { name: string; equipment: string; sets: { lbs: number; reps: number }[] }
+export type Template = {
+  id: string
+  user_id: string
+  name: string
+  exercises: TemplateExercise[]
+  is_shared: boolean
+  created_at: string
+  profiles: { display_name: string } | null
+}

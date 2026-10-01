@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/Toast'
 import type { useDraft } from '../hooks/useDraft'
-import { saveWorkout } from '../lib/api'
+import { saveTemplate, saveWorkout } from '../lib/api'
 import { clock } from '../lib/format'
 
 export function Log({ draft: d, onShared }: { draft: ReturnType<typeof useDraft>; onShared: () => void }) {
@@ -16,7 +16,14 @@ export function Log({ draft: d, onShared }: { draft: ReturnType<typeof useDraft>
     return () => clearInterval(id)
   }, [])
 
-  async function finish() {
+  if (!draft) return null
+
+  const addExercise = () => {
+    const name = prompt('Exercise name?')?.trim()
+    if (name) d.addExercise(name)
+  }
+
+  const finish = async () => {
     if (!draft.exercises.some((e) => e.sets.some((s) => s.d))) return toast('Mark at least one set as done first.')
     setBusy(true)
     try {
@@ -28,6 +35,20 @@ export function Log({ draft: d, onShared }: { draft: ReturnType<typeof useDraft>
       toast(`Could not save: ${(e as Error).message}`)
       setBusy(false)
     }
+  }
+
+  const saveAsTemplate = async () => {
+    if (!draft.exercises.length) return toast('Add an exercise first.')
+    try {
+      await saveTemplate(draft)
+      toast('Saved. Find it on the + screen.')
+    } catch (e) {
+      toast(`Could not save: ${(e as Error).message}`)
+    }
+  }
+
+  const discard = () => {
+    if (confirm('Discard this session?')) d.reset()
   }
 
   return (
@@ -64,12 +85,25 @@ export function Log({ draft: d, onShared }: { draft: ReturnType<typeof useDraft>
           ))}
           <div className="two">
             <button onClick={() => d.addSet(ei)}>+ Add Set</button>
-            <button onClick={() => { const n = prompt('Exercise name?')?.trim(); if (n) d.addExercise(n) }}>+ Add Exercise</button>
+            <button onClick={addExercise}>+ Add Exercise</button>
           </div>
         </div>
       ))}
 
+      {!draft.exercises.length && (
+        <>
+          <p className="empty">Empty session. Add your first exercise to begin.</p>
+          <div className="two" style={{ gridTemplateColumns: '1fr' }}>
+            <button onClick={addExercise}>+ Add Exercise</button>
+          </div>
+        </>
+      )}
+
       <button className="cta" onClick={finish} disabled={busy}>Finish &amp; Share Workout</button>
+      <div className="two" style={{ marginTop: 12 }}>
+        <button onClick={saveAsTemplate}>Save as template</button>
+        <button onClick={discard}>Discard session</button>
+      </div>
     </>
   )
 }
