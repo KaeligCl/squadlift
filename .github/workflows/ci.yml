@@ -1,0 +1,19 @@
+name: CI
+on:
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build   # vérifie les types TypeScript et la compilation
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co   # valeurs factices : on compile seulement
+          VITE_SUPABASE_ANON_KEY: ci-placeholder
