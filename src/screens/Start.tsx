@@ -6,13 +6,13 @@ import { useLoad } from '../hooks/useLoad'
 import { deleteTemplate, getRecentWorkouts, getTemplates, saveTemplateFrom, setTemplateShared } from '../lib/api'
 import { ago } from '../lib/format'
 import type { PastWorkout, Startable, Template } from '../lib/types'
+import { WorkoutDetail } from './WorkoutDetail'
 
-type List = 'mine' | 'friends' | 'last'
+type List = 'mine' | 'friends'
 
 const LISTS: { id: List; label: string }[] = [
   { id: 'mine', label: 'My sessions' },
-  { id: 'friends', label: 'Friends' },
-  { id: 'last', label: 'Last workout' },
+  { id: 'friends', label: 'Shared by friends' },
 ]
 
 const summary = (x: Startable) => {
@@ -27,6 +27,7 @@ const signature = (x: Startable) =>
 export function Start({ userId, onStart }: { userId: string; onStart: (session?: Startable) => void }) {
   const toast = useToast()
   const [list, setList] = useState<List>('mine')
+  const [selected, setSelected] = useState<PastWorkout | null>(null)
   const { data: templates, setData, reload } = useLoad(getTemplates, [])
   const { data: past } = useLoad(() => getRecentWorkouts(userId), [userId])
 
@@ -66,6 +67,17 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
     }
   }
 
+  if (selected) {
+    return (
+      <WorkoutDetail
+        workout={selected}
+        saved={saved.has(signature(selected))}
+        onSave={() => saveOld(selected)}
+        onBack={() => setSelected(null)}
+      />
+    )
+  }
+
   return (
     <>
       <div className="row hd"><h1>Start a workout</h1></div>
@@ -96,7 +108,7 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
         </div>
       ))}
       {list === 'mine' && templates && !mine.length && (
-        <p className="empty">No saved session yet. Save one from “Last workout”, or during a workout with “Save as template”.</p>
+        <p className="empty">No saved session yet. Open one from “Last workout” below, or use “Save as template” during a workout.</p>
       )}
 
       {list === 'friends' && fromFriends.map((t) => {
@@ -112,20 +124,13 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
         <p className="empty">Nothing shared yet. Friends can share a saved session from this screen.</p>
       )}
 
-      {list === 'last' && past?.map((w) => {
-        const isSaved = saved.has(signature(w))
-        return (
-          <div key={w.id} className="card li">
-            <button className="g" onClick={() => onStart(w)}>
-              <b>{w.name}</b><span className="mute">{ago(w.created_at)} · {summary(w)}</span>
-            </button>
-            <button className={`sm ${isSaved ? 'off' : ''}`} onClick={() => saveOld(w)}>{isSaved ? 'Saved' : 'Save'}</button>
-          </div>
-        )
-      })}
-      {list === 'last' && past && !past.length && (
-        <p className="empty">No workout yet. Finish a session and it will show up here.</p>
-      )}
+      <div className="sec">Last workout</div>
+      {past?.map((w) => (
+        <button key={w.id} className="card li" onClick={() => setSelected(w)}>
+          <div className="g"><b>{w.name}</b><span className="mute">{ago(w.created_at)} · {summary(w)}</span></div>
+        </button>
+      ))}
+      {past && !past.length && <p className="empty">No workout yet. Finish a session and it will show up here.</p>}
     </>
   )
 }

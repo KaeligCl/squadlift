@@ -76,3 +76,6 @@ nav .t svg{font-size:22px}nav .t.on{color:var(--lime)}
 .stack{display:flex;flex-direction:column;gap:12px;margin-bottom:8px}
 .cta.ghost{background:var(--card);color:var(--text);border:1px solid var(--line);box-shadow:none}
 .envbar{background:var(--cyan);color:#050608;font-size:10px;font-weight:800;text-align:center;padding:3px 8px;letter-spacing:.08em;text-transform:uppercase;flex:none}
+.tbl.ro{grid-template-columns:40px 1fr 1fr}
+.tbl .cell{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px;text-align:center;font-weight:600}
+.cta.saved{background:var(--card);color:var(--mute);border:1px solid var(--line);box-shadow:none}
