@@ -11,6 +11,7 @@ import { Friends } from './screens/Friends'
 import { Log } from './screens/Log'
 import { Profile } from './screens/Profile'
 import { Ranks } from './screens/Ranks'
+import { Start } from './screens/Start'
 
 export default function App() {
   const session = useSession()
@@ -28,6 +29,7 @@ export default function App() {
 
   return (
     <div id="app">
+      {__APP_LABEL__ && <div className="envbar">{__APP_LABEL__}</div>}
       <ToastProvider>
         <main>
           {!userId ? (
@@ -36,7 +38,12 @@ export default function App() {
             <>
               {tab === 'profile' && <Profile userId={userId} me={me} />}
               {tab === 'feed' && <Feed userId={userId} onLog={() => setTab('log')} />}
-              {tab === 'log' && <Log draft={draft} onShared={() => setTab('feed')} />}
+              {tab === 'log' &&
+                (draft.draft ? (
+                  <Log draft={draft} onShared={() => setTab('feed')} />
+                ) : (
+                  <Start userId={userId} onStart={draft.start} />
+                ))}
               {tab === 'friends' && <Friends userId={userId} />}
               {tab === 'ranks' && <Ranks userId={userId} />}
             </>
