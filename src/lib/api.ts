@@ -224,3 +224,14 @@ export async function deleteTemplate(id: string) {
   const { error } = await supabase.from('workout_templates').delete().eq('id', id)
   if (error) throw error
 }
+
+// Modifie une séance enregistrée (sans la démarrer). Seul son auteur peut la modifier (règle RLS).
+export async function updateTemplate(id: string, name: string, exercises: TemplateExercise[]) {
+  const { data, error } = await supabase
+    .from('workout_templates')
+    .update({ name: name.trim(), exercises })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('Session not found or not yours.')
+}

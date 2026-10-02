@@ -6,11 +6,12 @@ import { useLoad } from '../hooks/useLoad'
 import { deleteTemplate, getRecentWorkouts, getTemplates, saveTemplateFrom, setTemplateShared } from '../lib/api'
 import { ago, fdate } from '../lib/format'
 import type { PastWorkout, Startable, Template } from '../lib/types'
+import { TemplateEditor } from './TemplateEditor'
 import { WorkoutDetail } from './WorkoutDetail'
 
 type List = 'mine' | 'friends'
 // Ce qu'on est en train de regarder (aperçu), sans avoir démarré de séance
-type View = { kind: 'template'; t: Template } | { kind: 'past'; w: PastWorkout }
+type View = { kind: 'template'; t: Template } | { kind: 'edit'; t: Template } | { kind: 'past'; w: PastWorkout }
 
 const LISTS: { id: List; label: string }[] = [
   { id: 'mine', label: 'My sessions' },
@@ -69,6 +70,22 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
     }
   }
 
+  // ---- modifier une de mes séances enregistrées, sans la démarrer ----
+  if (view?.kind === 'edit') {
+    const original = view.t
+    return (
+      <TemplateEditor
+        template={original}
+        onCancel={() => setView({ kind: 'template', t: original })}
+        onSaved={(updated) => {
+          setData((all) => (all ?? []).map((x) => (x.id === updated.id ? updated : x)))
+          setView({ kind: 'template', t: updated })
+          toast('Session updated.')
+        }}
+      />
+    )
+  }
+
   // ---- aperçu d'une séance : on voit tous les exercices, puis on choisit de la lancer ----
   if (view?.kind === 'template') {
     const t = view.t
@@ -81,6 +98,9 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
         onBack={() => setView(null)}
       >
         <button className="cta" onClick={() => onStart(t)}>Start session</button>
+        {t.user_id === userId && (
+          <button className="cta ghost" onClick={() => setView({ kind: 'edit', t })}>Edit session</button>
+        )}
       </WorkoutDetail>
     )
   }

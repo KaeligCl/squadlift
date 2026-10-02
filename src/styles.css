@@ -85,3 +85,4 @@ nav .t svg{font-size:22px}nav .t.on{color:var(--lime)}
 .tbl.ro{grid-template-columns:40px 1fr 1fr}
 .tbl .cell{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px;text-align:center;font-weight:600}
 .cta.saved{background:var(--card);color:var(--mute);border:1px solid var(--line);box-shadow:none}
+.ck:disabled{opacity:.35;cursor:default}
