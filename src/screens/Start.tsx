@@ -4,11 +4,13 @@ import { Icon } from '../components/Icon'
 import { useToast } from '../components/Toast'
 import { useLoad } from '../hooks/useLoad'
 import { deleteTemplate, getRecentWorkouts, getTemplates, saveTemplateFrom, setTemplateShared } from '../lib/api'
-import { ago } from '../lib/format'
+import { ago, fdate } from '../lib/format'
 import type { PastWorkout, Startable, Template } from '../lib/types'
 import { WorkoutDetail } from './WorkoutDetail'
 
 type List = 'mine' | 'friends'
+// Ce qu'on est en train de regarder (aperçu), sans avoir démarré de séance
+type View = { kind: 'template'; t: Template } | { kind: 'past'; w: PastWorkout }
 
 const LISTS: { id: List; label: string }[] = [
   { id: 'mine', label: 'My sessions' },
@@ -27,7 +29,7 @@ const signature = (x: Startable) =>
 export function Start({ userId, onStart }: { userId: string; onStart: (session?: Startable) => void }) {
   const toast = useToast()
   const [list, setList] = useState<List>('mine')
-  const [selected, setSelected] = useState<PastWorkout | null>(null)
+  const [view, setView] = useState<View | null>(null)
   const { data: templates, setData, reload } = useLoad(getTemplates, [])
   const { data: past } = useLoad(() => getRecentWorkouts(userId), [userId])
 
@@ -67,14 +69,38 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
     }
   }
 
-  if (selected) {
+  // ---- aperçu d'une séance : on voit tous les exercices, puis on choisit de la lancer ----
+  if (view?.kind === 'template') {
+    const t = view.t
+    const author = t.profiles?.display_name ?? 'A friend'
     return (
       <WorkoutDetail
-        workout={selected}
-        saved={saved.has(signature(selected))}
-        onSave={() => saveOld(selected)}
-        onBack={() => setSelected(null)}
-      />
+        name={t.name}
+        subtitle={t.user_id === userId ? 'My session' : `Shared by ${author}`}
+        exercises={t.exercises}
+        onBack={() => setView(null)}
+      >
+        <button className="cta" onClick={() => onStart(t)}>Start session</button>
+      </WorkoutDetail>
+    )
+  }
+
+  // ---- séance passée : la refaire telle quelle, ou l'ajouter à My sessions ----
+  if (view?.kind === 'past') {
+    const w = view.w
+    const isSaved = saved.has(signature(w))
+    return (
+      <WorkoutDetail
+        name={w.name}
+        subtitle={`${fdate(w.created_at)} · ${ago(w.created_at)}`}
+        exercises={w.exercises}
+        onBack={() => setView(null)}
+      >
+        <button className="cta" onClick={() => onStart(w)}>Do it again</button>
+        <button className={`cta ${isSaved ? 'saved' : 'ghost'}`} onClick={() => saveOld(w)} disabled={isSaved}>
+          {isSaved ? 'Already in My sessions' : 'Add to My sessions'}
+        </button>
+      </WorkoutDetail>
     )
   }
 
@@ -96,7 +122,7 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
 
       {list === 'mine' && mine.map((t) => (
         <div key={t.id} className="card li">
-          <button className="g" onClick={() => onStart(t)}>
+          <button className="g" onClick={() => setView({ kind: 'template', t })}>
             <b>{t.name}</b><span className="mute">{summary(t)}</span>
           </button>
           <button className={`sm ${t.is_shared ? '' : 'off'}`} aria-pressed={t.is_shared} onClick={() => toggleShared(t)}>
@@ -114,7 +140,7 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
       {list === 'friends' && fromFriends.map((t) => {
         const author = t.profiles?.display_name ?? 'A friend'
         return (
-          <button key={t.id} className="card li" onClick={() => onStart(t)}>
+          <button key={t.id} className="card li" onClick={() => setView({ kind: 'template', t })}>
             <Avatar name={author} size={40} />
             <div className="g"><b>{t.name}</b><span className="mute">by {author} · {summary(t)}</span></div>
           </button>
@@ -126,7 +152,7 @@ export function Start({ userId, onStart }: { userId: string; onStart: (session?:
 
       <div className="sec">Last workout</div>
       {past?.map((w) => (
-        <button key={w.id} className="card li" onClick={() => setSelected(w)}>
+        <button key={w.id} className="card li" onClick={() => setView({ kind: 'past', w })}>
           <div className="g"><b>{w.name}</b><span className="mute">{ago(w.created_at)} · {summary(w)}</span></div>
         </button>
       ))}
