@@ -43,3 +43,7 @@ export type Template = {
   created_at: string
   profiles: { display_name: string } | null
 }
+
+// Tout ce qui peut servir à démarrer une séance : un modèle, ou une séance passée
+export type Startable = { name: string; exercises: TemplateExercise[] }
+export type PastWorkout = Startable & { id: string; created_at: string }

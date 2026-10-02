@@ -3,21 +3,36 @@ import { Avatar } from '../components/Avatar'
 import { Icon } from '../components/Icon'
 import { useToast } from '../components/Toast'
 import { useLoad } from '../hooks/useLoad'
-import { deleteTemplate, getTemplates, setTemplateShared } from '../lib/api'
-import type { Template } from '../lib/types'
+import { deleteTemplate, getRecentWorkouts, getTemplates, saveTemplateFrom, setTemplateShared } from '../lib/api'
+import { ago } from '../lib/format'
+import type { PastWorkout, Startable, Template } from '../lib/types'
 
-const summary = (t: Template) => {
-  const sets = t.exercises.reduce((n, e) => n + e.sets.length, 0)
-  return `${t.exercises.length} exercise${t.exercises.length === 1 ? '' : 's'} · ${sets} sets`
+type List = 'mine' | 'friends' | 'last'
+
+const LISTS: { id: List; label: string }[] = [
+  { id: 'mine', label: 'My sessions' },
+  { id: 'friends', label: 'Friends' },
+  { id: 'last', label: 'Last workout' },
+]
+
+const summary = (x: Startable) => {
+  const sets = x.exercises.reduce((n, e) => n + e.sets.length, 0)
+  return `${x.exercises.length} exercise${x.exercises.length === 1 ? '' : 's'} · ${sets} sets`
 }
 
-export function Start({ userId, onStart }: { userId: string; onStart: (template?: Template) => void }) {
+// Empreinte d'une séance, pour savoir si elle est déjà dans "My sessions"
+const signature = (x: Startable) =>
+  x.name + '|' + x.exercises.map((e) => `${e.name}:${e.sets.map((s) => `${s.lbs}x${s.reps}`).join(',')}`).join(';')
+
+export function Start({ userId, onStart }: { userId: string; onStart: (session?: Startable) => void }) {
   const toast = useToast()
-  const [list, setList] = useState<'mine' | 'friends'>('mine')
+  const [list, setList] = useState<List>('mine')
   const { data: templates, setData, reload } = useLoad(getTemplates, [])
+  const { data: past } = useLoad(() => getRecentWorkouts(userId), [userId])
 
   const mine = templates?.filter((t) => t.user_id === userId) ?? []
   const fromFriends = templates?.filter((t) => t.user_id !== userId) ?? []
+  const saved = new Set(mine.map(signature))
 
   async function toggleShared(t: Template) {
     setData((all) => (all ?? []).map((x) => (x.id === t.id ? { ...x, is_shared: !x.is_shared } : x)))
@@ -40,6 +55,17 @@ export function Start({ userId, onStart }: { userId: string; onStart: (template?
     }
   }
 
+  async function saveOld(w: PastWorkout) {
+    if (saved.has(signature(w))) return toast('Already in My sessions.')
+    try {
+      await saveTemplateFrom(w.name, w.exercises)
+      toast('Saved to My sessions.')
+      reload()
+    } catch {
+      toast('Could not save the session.')
+    }
+  }
+
   return (
     <>
       <div className="row hd"><h1>Start a workout</h1></div>
@@ -49,12 +75,11 @@ export function Start({ userId, onStart }: { userId: string; onStart: (template?
 
       <div className="sec">Or pick a session</div>
       <div className="seg" role="tablist">
-        <button role="tab" aria-selected={list === 'mine'} className={list === 'mine' ? 'on' : ''} onClick={() => setList('mine')}>
-          My sessions
-        </button>
-        <button role="tab" aria-selected={list === 'friends'} className={list === 'friends' ? 'on' : ''} onClick={() => setList('friends')}>
-          Shared by friends
-        </button>
+        {LISTS.map((l) => (
+          <button key={l.id} role="tab" aria-selected={list === l.id} className={list === l.id ? 'on' : ''} onClick={() => setList(l.id)}>
+            {l.label}
+          </button>
+        ))}
       </div>
 
       {list === 'mine' && mine.map((t) => (
@@ -71,7 +96,7 @@ export function Start({ userId, onStart }: { userId: string; onStart: (template?
         </div>
       ))}
       {list === 'mine' && templates && !mine.length && (
-        <p className="empty">No saved session yet. During a workout, tap “Save as template”.</p>
+        <p className="empty">No saved session yet. Save one from “Last workout”, or during a workout with “Save as template”.</p>
       )}
 
       {list === 'friends' && fromFriends.map((t) => {
@@ -85,6 +110,21 @@ export function Start({ userId, onStart }: { userId: string; onStart: (template?
       })}
       {list === 'friends' && templates && !fromFriends.length && (
         <p className="empty">Nothing shared yet. Friends can share a saved session from this screen.</p>
+      )}
+
+      {list === 'last' && past?.map((w) => {
+        const isSaved = saved.has(signature(w))
+        return (
+          <div key={w.id} className="card li">
+            <button className="g" onClick={() => onStart(w)}>
+              <b>{w.name}</b><span className="mute">{ago(w.created_at)} · {summary(w)}</span>
+            </button>
+            <button className={`sm ${isSaved ? 'off' : ''}`} onClick={() => saveOld(w)}>{isSaved ? 'Saved' : 'Save'}</button>
+          </div>
+        )
+      })}
+      {list === 'last' && past && !past.length && (
+        <p className="empty">No workout yet. Finish a session and it will show up here.</p>
       )}
     </>
   )

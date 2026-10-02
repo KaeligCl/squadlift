@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import type { Draft, SetEntry, Template } from '../lib/types'
+import type { Draft, SetEntry, Startable } from '../lib/types'
 
 const KEY = 'squadlift:draft:v2'
 
 const blank = (): Draft => ({ name: 'Workout', start: Date.now(), exercises: [] })
 
-const fromTemplate = (t: Template): Draft => ({
+const fromTemplate = (t: Startable): Draft => ({
   name: t.name,
   start: Date.now(),
   exercises: t.exercises.map((e) => ({
@@ -42,7 +42,7 @@ export function useDraft() {
 
   return {
     draft,
-    start: (template?: Template) => setDraft(template ? fromTemplate(template) : blank()),
+    start: (template?: Startable) => setDraft(template ? fromTemplate(template) : blank()),
     reset: () => setDraft(null),
     setName: (name: string) => edit((d) => ({ ...d, name })),
     updateSet: (ei: number, si: number, patch: Partial<SetEntry>) =>
