@@ -10,19 +10,49 @@ export default defineConfig(({ mode }) => {
   if (!env.VITE_SUPABASE_URL || !env.VITE_SUPABASE_ANON_KEY) {
     throw new Error('VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY sont obligatoires (voir .env.example).')
   }
-  // Sur l'environnement de dev, l'app s'appelle "SquadLift DEV" pour ne pas la confondre avec la vraie.
-  const appName = env.VITE_APP_ENV === 'dev' ? 'SquadLift DEV' : 'SquadLift'
+  // Nom de l'environnement, pour s'y retrouver :
+  //  - production (branche main, GitHub Actions)  -> "SquadLift"
+  //  - branche develop (Cloudflare)               -> "SquadLift DEV"
+  //  - branche feature/xxx (Cloudflare preview)   -> "SquadLift PREVIEW xxx"
+  //  - en local avec VITE_APP_ENV=dev             -> "SquadLift DEV"
+  // WORKERS_CI_BRANCH est fournie automatiquement par Cloudflare Workers Builds.
+  const branch = process.env.WORKERS_CI_BRANCH ?? ''
+  const feature = branch.replace(/^feature\//, '').replace(/[^\w\-./]/g, '')
+  let label = ''
+  let banner = '' // texte brut du bandeau : "preview: feature/workout"
+  let shortLabel = ''
+  if (branch && branch !== 'main') {
+    label = branch === 'develop' ? 'DEV' : `PREVIEW ${feature}`
+    banner = `${branch === 'develop' ? 'dev' : 'preview'}: ${branch}`
+    shortLabel = branch === 'develop' ? 'SL DEV' : `SL ${feature}`.slice(0, 12)
+  } else if (!branch && env.VITE_APP_ENV === 'dev') {
+    label = 'DEV'
+    shortLabel = 'SL DEV'
+    banner = 'dev: local'
+  }
+  const appName = label ? `SquadLift ${label}` : 'SquadLift'
+  const shortName = shortLabel || 'SquadLift'
 
   return {
   base,
+  define: { __APP_LABEL__: JSON.stringify(banner) },
   plugins: [
     react(),
+    {
+      // Le titre de l'onglet du navigateur affiche aussi le nom de l'environnement
+      name: 'app-title',
+      transformIndexHtml: (html: string) =>
+        html.replace(/<title>.*<\/title>/, `<title>${appName}</title>`).replace(
+          /(name="apple-mobile-web-app-title" content=")[^"]*/,
+          `$1${shortName}`,
+        ),
+    },
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
         name: appName,
-        short_name: appName,
+        short_name: shortName,
         description: 'Log your lifts and compare with your squad.',
         theme_color: '#050608',
         background_color: '#050608',

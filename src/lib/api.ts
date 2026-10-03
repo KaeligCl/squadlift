@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { Draft, FeedWorkout, Friend, FriendRequest, LeaderRow, Metric, Profile, ProfileStats } from './types'
+import type { Draft, FeedWorkout, Friend, FriendRequest, LeaderRow, Metric, PastWorkout, Profile, ProfileStats, Template, TemplateExercise } from './types'
 
 const WEEK = 7 * 24 * 3600 * 1000
 
@@ -155,4 +155,83 @@ export async function saveWorkout(draft: Draft) {
     })),
   })
   if (error) throw error
+}
+
+// Mes séances enregistrées + celles que mes amis ont partagées (le filtrage est fait par la base)
+export async function getTemplates(): Promise<Template[]> {
+  const { data } = await supabase
+    .from('workout_templates')
+    .select('id,user_id,name,exercises,is_shared,created_at,profiles(display_name)')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as unknown as Template[]
+}
+
+export function saveTemplate(draft: Draft) {
+  return saveTemplateFrom(
+    draft.name,
+    draft.exercises.map((e) => ({ name: e.name, equipment: e.equipment, sets: e.sets.map((s) => ({ lbs: s.w, reps: s.r })) })),
+  )
+}
+
+export async function saveTemplateFrom(name: string, exercises: TemplateExercise[]) {
+  const { error } = await supabase.from('workout_templates').insert({ name: name.trim() || 'Workout', exercises })
+  if (error) throw error
+}
+
+// Mes dernières séances terminées (séries faites uniquement), prêtes à être refaites ou enregistrées
+export async function getRecentWorkouts(userId: string): Promise<PastWorkout[]> {
+  const { data } = await supabase
+    .from('workouts')
+    .select('id,name,created_at,workout_exercises(position,name,equipment,workout_sets(set_number,lbs,reps,done))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  type Row = {
+    id: string
+    name: string
+    created_at: string
+    workout_exercises: {
+      position: number
+      name: string
+      equipment: string
+      workout_sets: { set_number: number; lbs: number; reps: number; done: boolean }[]
+    }[]
+  }
+  return ((data ?? []) as unknown as Row[])
+    .map((w) => ({
+      id: w.id,
+      name: w.name,
+      created_at: w.created_at,
+      exercises: [...w.workout_exercises]
+        .sort((a, b) => a.position - b.position)
+        .flatMap((e) => {
+          const sets = e.workout_sets
+            .filter((s) => s.done)
+            .sort((a, b) => a.set_number - b.set_number)
+            .map((s) => ({ lbs: Number(s.lbs), reps: s.reps }))
+          return sets.length ? [{ name: e.name, equipment: e.equipment, sets }] : []
+        }),
+    }))
+    .filter((w) => w.exercises.length > 0)
+}
+
+export async function setTemplateShared(id: string, shared: boolean) {
+  const { error } = await supabase.from('workout_templates').update({ is_shared: shared }).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteTemplate(id: string) {
+  const { error } = await supabase.from('workout_templates').delete().eq('id', id)
+  if (error) throw error
+}
+
+// Modifie une séance enregistrée (sans la démarrer). Seul son auteur peut la modifier (règle RLS).
+export async function updateTemplate(id: string, name: string, exercises: TemplateExercise[]) {
+  const { data, error } = await supabase
+    .from('workout_templates')
+    .update({ name: name.trim(), exercises })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  if (!data?.length) throw new Error('Session not found or not yours.')
 }

@@ -5,9 +5,11 @@ import { useToast } from '../components/Toast'
 import { useLoad } from '../hooks/useLoad'
 import { acceptFriendRequest, findProfile, getFriends, sendFriendRequest } from '../lib/api'
 import { ago } from '../lib/format'
+import { useI18n } from '../lib/i18n'
 
 export function Friends({ userId }: { userId: string }) {
   const toast = useToast()
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const { data, reload } = useLoad(() => getFriends(userId), [userId])
 
@@ -15,17 +17,17 @@ export function Friends({ userId }: { userId: string }) {
   const requests = data?.requests ?? []
 
   async function addFriend() {
-    const q = prompt("Friend's name or username?")
+    const q = prompt(t('friends.prompt'))
     if (!q) return
     const found = await findProfile(q, userId)
-    if (!found) return toast('Nobody found with that name.')
-    if (!confirm(`Send a request to ${found.display_name}?`)) return
+    if (!found) return toast(t('friends.notFound'))
+    if (!confirm(t('friends.confirm', { name: found.display_name }))) return
     try {
       await sendFriendRequest(userId, found.id)
-      toast('Request sent.')
+      toast(t('friends.sent'))
       reload()
     } catch {
-      toast('Request already sent or already friends.')
+      toast(t('friends.sentFail'))
     }
   }
 
@@ -33,7 +35,7 @@ export function Friends({ userId }: { userId: string }) {
     try {
       await acceptFriendRequest(id)
     } catch {
-      toast('Could not accept the request.')
+      toast(t('friends.acceptFail'))
     }
     reload()
   }
@@ -41,19 +43,19 @@ export function Friends({ userId }: { userId: string }) {
   return (
     <>
       <div className="row hd">
-        <h1>My Squad</h1>
-        <button className="ib" aria-label="Add friend" onClick={addFriend}><Icon name="uadd" /></button>
+        <h1>{t('friends.title')}</h1>
+        <button className="ib" aria-label={t('common.addFriend')} onClick={addFriend}><Icon name="uadd" /></button>
       </div>
       <label className="card srch">
         <span className="mute"><Icon name="search" /></span>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search friends..." autoComplete="off" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('friends.search')} autoComplete="off" />
       </label>
 
       {requests.map((r) => (
         <div key={r.id} className="card li">
           <Avatar name={r.name} size={44} />
-          <div className="g"><b>{r.name}</b><span className="mute">{r.incoming ? 'Wants to join your squad' : 'Request sent'}</span></div>
-          {r.incoming && <button className="sm" onClick={() => accept(r.id)}>Accept</button>}
+          <div className="g"><b>{r.name}</b><span className="mute">{r.incoming ? t('friends.wants') : t('friends.pending')}</span></div>
+          {r.incoming && <button className="sm" onClick={() => accept(r.id)}>{t('friends.accept')}</button>}
         </div>
       ))}
 
@@ -62,13 +64,13 @@ export function Friends({ userId }: { userId: string }) {
           <Avatar name={f.name} size={44} />
           <div className="g">
             <b>{f.name}</b>
-            <span className="mute">{f.last ? `${ago(f.last.created_at)} - ${f.last.name}` : 'No session yet'}</span>
+            <span className="mute">{f.last ? `${ago(f.last.created_at, t)} - ${f.last.name}` : t('friends.noSession')}</span>
           </div>
-          <b className={f.streak ? 'lime' : 'mute'} style={{ fontSize: 12 }}>{f.streak} Days {f.streak ? '🔥' : '💤'}</b>
+          <b className={f.streak ? 'lime' : 'mute'} style={{ fontSize: 12 }}>{t('common.day', { n: f.streak })} {f.streak ? '🔥' : '💤'}</b>
         </div>
       ))}
       {data && !friends.length && !requests.length && (
-        <p className="empty">No friends yet. Tap the add button and enter their name or username.</p>
+        <p className="empty">{t('friends.empty')}</p>
       )}
     </>
   )

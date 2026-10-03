@@ -1,48 +1,61 @@
 import { useEffect, useState } from 'react'
-import type { Draft, SetEntry } from '../lib/types'
+import { useI18n } from '../lib/i18n'
+import type { Draft, SetEntry, Startable } from '../lib/types'
 
-const KEY = 'squadlift:draft'
+const KEY = 'squadlift:draft:v2'
 
-const fresh = (): Draft => ({
-  name: 'Workout',
+const blank = (name: string): Draft => ({ name, start: Date.now(), exercises: [] })
+
+const fromTemplate = (t: Startable): Draft => ({
+  name: t.name,
   start: Date.now(),
-  exercises: [{ name: 'Bench Press', equipment: 'Barbell', sets: [{ w: 135, r: 10, d: false }] }],
+  exercises: t.exercises.map((e) => ({
+    name: e.name,
+    equipment: e.equipment,
+    sets: e.sets.map((s) => ({ w: s.lbs, r: s.reps, d: false })),
+  })),
 })
 
-function load(): Draft {
+function load(): Draft | null {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) return JSON.parse(raw) as Draft
   } catch {
-    /* brouillon illisible : on repart de zéro */
+    /* brouillon illisible : pas de séance en cours */
   }
-  return fresh()
+  return null
 }
 
-// Le brouillon de séance survit à la fermeture de l'app.
+// `draft` vaut null tant qu'aucune séance n'est en cours. Elle survit à la fermeture de l'app.
 export function useDraft() {
-  const [draft, setDraft] = useState<Draft>(load)
+  const { t } = useI18n()
+  const [draft, setDraft] = useState<Draft | null>(load)
 
   useEffect(() => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(draft))
+      if (draft) localStorage.setItem(KEY, JSON.stringify(draft))
+      else localStorage.removeItem(KEY)
     } catch {
       /* stockage plein ou désactivé */
     }
   }, [draft])
 
+  const edit = (fn: (d: Draft) => Draft) => setDraft((d) => (d ? fn(d) : d))
+
   return {
     draft,
-    setName: (name: string) => setDraft((d) => ({ ...d, name })),
+    start: (template?: Startable) => setDraft(template ? fromTemplate(template) : blank(t('log.defaultName'))),
+    reset: () => setDraft(null),
+    setName: (name: string) => edit((d) => ({ ...d, name })),
     updateSet: (ei: number, si: number, patch: Partial<SetEntry>) =>
-      setDraft((d) => ({
+      edit((d) => ({
         ...d,
         exercises: d.exercises.map((e, i) =>
           i !== ei ? e : { ...e, sets: e.sets.map((s, j) => (j !== si ? s : { ...s, ...patch })) },
         ),
       })),
     addSet: (ei: number) =>
-      setDraft((d) => ({
+      edit((d) => ({
         ...d,
         exercises: d.exercises.map((e, i) => {
           if (i !== ei) return e
@@ -51,10 +64,9 @@ export function useDraft() {
         }),
       })),
     addExercise: (name: string) =>
-      setDraft((d) => ({
+      edit((d) => ({
         ...d,
-        exercises: [...d.exercises, { name, equipment: 'Barbell', sets: [{ w: 45, r: 10, d: false }] }],
+        exercises: [...d.exercises, { name, equipment: t('common.defaultEquipment'), sets: [{ w: 45, r: 10, d: false }] }],
       })),
-    reset: () => setDraft(fresh()),
   }
 }
