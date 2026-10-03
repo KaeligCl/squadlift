@@ -4,6 +4,7 @@ import { ToastProvider } from './components/Toast'
 import { useDraft } from './hooks/useDraft'
 import { useSession } from './hooks/useSession'
 import { getProfile } from './lib/api'
+import { I18nProvider } from './lib/i18n'
 import type { Profile as ProfileData, Tab } from './lib/types'
 import { Auth } from './screens/Auth'
 import { Feed } from './screens/Feed'
@@ -14,6 +15,14 @@ import { Ranks } from './screens/Ranks'
 import { Start } from './screens/Start'
 
 export default function App() {
+  return (
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
+  )
+}
+
+function AppContent() {
   const session = useSession()
   const [tab, setTab] = useState<Tab>('profile')
   const [me, setMe] = useState<ProfileData | null>(null)

@@ -86,3 +86,8 @@ nav .t svg{font-size:22px}nav .t.on{color:var(--lime)}
 .tbl .cell{background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:9px;text-align:center;font-weight:600}
 .cta.saved{background:var(--card);color:var(--mute);border:1px solid var(--line);box-shadow:none}
 .ck:disabled{opacity:.35;cursor:default}
+/* sélecteur de langue (en-tête du profil) */
+.lang{display:flex;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;flex:none}
+.lang button{padding:8px 11px;border-radius:9px;font-size:11px;font-weight:800;color:var(--mute);letter-spacing:.04em}
+.lang .on{background:var(--lime);color:#050608}
+.signout{display:block;margin:24px auto 8px;padding:8px 12px;color:var(--mute);font-size:12px;text-decoration:underline}

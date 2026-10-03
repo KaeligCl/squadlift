@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useI18n } from '../lib/i18n'
 import type { Draft, SetEntry, Startable } from '../lib/types'
 
 const KEY = 'squadlift:draft:v2'
 
-const blank = (): Draft => ({ name: 'Workout', start: Date.now(), exercises: [] })
+const blank = (name: string): Draft => ({ name, start: Date.now(), exercises: [] })
 
 const fromTemplate = (t: Startable): Draft => ({
   name: t.name,
@@ -27,6 +28,7 @@ function load(): Draft | null {
 
 // `draft` vaut null tant qu'aucune séance n'est en cours. Elle survit à la fermeture de l'app.
 export function useDraft() {
+  const { t } = useI18n()
   const [draft, setDraft] = useState<Draft | null>(load)
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export function useDraft() {
 
   return {
     draft,
-    start: (template?: Startable) => setDraft(template ? fromTemplate(template) : blank()),
+    start: (template?: Startable) => setDraft(template ? fromTemplate(template) : blank(t('log.defaultName'))),
     reset: () => setDraft(null),
     setName: (name: string) => edit((d) => ({ ...d, name })),
     updateSet: (ei: number, si: number, patch: Partial<SetEntry>) =>
@@ -64,7 +66,7 @@ export function useDraft() {
     addExercise: (name: string) =>
       edit((d) => ({
         ...d,
-        exercises: [...d.exercises, { name, equipment: 'Barbell', sets: [{ w: 45, r: 10, d: false }] }],
+        exercises: [...d.exercises, { name, equipment: t('common.defaultEquipment'), sets: [{ w: 45, r: 10, d: false }] }],
       })),
   }
 }
